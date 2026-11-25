@@ -1,0 +1,376 @@
+diff --git a/build/de.cau.cs.kieler.semantics.targetplatform/de.cau.cs.kieler.semantics.targetplatform.target b/build/de.cau.cs.kieler.semantics.targetplatform/de.cau.cs.kieler.semantics.targetplatform.target
+index 0708799..2cf9274 100644
+--- a/build/de.cau.cs.kieler.semantics.targetplatform/de.cau.cs.kieler.semantics.targetplatform.target
++++ b/build/de.cau.cs.kieler.semantics.targetplatform/de.cau.cs.kieler.semantics.targetplatform.target
+@@ -35,18 +35,14 @@
+       <unit id="de.cau.cs.kieler.kgraph.text.ui" version="0.0.0"/>
+       <repository location="https://kieler.github.io/KLighD/v3.1.0/"/>
+     </location>
+-    <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="false" type="InstallableUnit">
+-      <unit id="de.cau.cs.kieler.graphs.klighd" version="0.0.0"/>
+-      <repository location="https://rtsys.informatik.uni-kiel.de/~kieler/updatesite/release_pragmatics_2025-04"/>
+-    </location>
+     <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="false" type="InstallableUnit">
+       <unit id="org.eclipse.elk.graphviz.feature.feature.group" version="0.0.0"/>
+       <unit id="org.eclipse.elk.ui.feature.feature.group" version="0.0.0"/>
+       <unit id="org.eclipse.elk.sdk.feature.feature.group" version="0.0.0"/>
+-      <repository location="https://download.eclipse.org/elk/updates/releases/0.11.0/"/>
++      <repository location="https://download.eclipse.org/elk/updates/releases/0.12.0/"/>
+     </location>
+     <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="false" type="InstallableUnit">
+-      <unit id="de.cau.cs.kieler.websocket.mirror" version="0.0.0"/>
++      <unit id="de.cau.cs.kieler.websocket.mirror" version="10.0.20"/>
+       <repository location="https://rtsys.informatik.uni-kiel.de/~kieler/updatesite/websocket-mirror/10.0.20/"/>
+     </location>
+   </locations>
+diff --git a/build/pom.xml b/build/pom.xml
+index 74b4eea..940a6a3 100644
+--- a/build/pom.xml
++++ b/build/pom.xml
+@@ -10,8 +10,8 @@
+   <!-- Define a few properties used throughout all build profiles. -->
+   <properties>
+     <!-- Language server dependency versions -->
+-    <elk-version>0.11.0</elk-version>
+-    <klighd-version>3.1.0.v20250428</klighd-version>
++    <elk-version>0.12.0</elk-version>
++    <klighd-version>3.1.1-SNAPSHOT</klighd-version>
+     <lsp4j-version>0.23.1</lsp4j-version>
+     <pragmatics-version>0.52.0.v20250429</pragmatics-version>
+ 
+@@ -27,7 +27,7 @@
+     <targetJdk>21</targetJdk>
+     <maven.compiler.source>21</maven.compiler.source>
+     <maven.compiler.target>21</maven.compiler.target>
+-  
++
+     <!-- Non-breakable space, as normal spaces are trimmed. -->
+     <sourceFeatureLabelSuffix>&#xA0;(Sources)</sourceFeatureLabelSuffix>
+ 
+@@ -83,7 +83,7 @@
+       <id>semantics.product</id>
+ 
+       <modules>
+-        <module>de.cau.cs.kieler.semantics.targetplatform</module> 
++        <module>de.cau.cs.kieler.semantics.targetplatform</module>
+         <module>../plugins</module>
+         <module>../features</module>
+         <module>de.cau.cs.kieler.semantics.repository</module>
+@@ -109,13 +109,13 @@
+ 
+     <profile>
+       <id>semantics.all</id>
+-      
++
+       <activation>
+         <activeByDefault>true</activeByDefault>
+       </activation>
+ 
+       <modules>
+-        <module>de.cau.cs.kieler.semantics.targetplatform</module> 
++        <module>de.cau.cs.kieler.semantics.targetplatform</module>
+         <module>../plugins</module>
+         <module>../test</module>
+         <module>../features</module>
+@@ -129,7 +129,7 @@
+         <module>../test/de.cau.cs.kieler.cli.test</module>
+       </modules>
+     </profile>
+-  
++
+   </profiles>
+ 
+   <!-- This configuration is based on the Xtext example project (https://github.com/xtext/maven-xtext-example) and prevents weird build errors -->
+@@ -145,7 +145,7 @@
+           <enabled>false</enabled>
+       </snapshots>
+     </repository>
+-    <!-- This must be disabled explicitly, otherwise it is enabled by https://github.com/mojohaus/mojo-parent 
++    <!-- This must be disabled explicitly, otherwise it is enabled by https://github.com/mojohaus/mojo-parent
+         which is taken from exec-maven-plugin from at least version 1.6.0 -->
+     <repository>
+       <id>ossrh-snapshots</id>
+@@ -158,7 +158,7 @@
+       </snapshots>
+       <url>http://oss.sonatype.org/content/repositories/snapshots</url>
+     </repository>
+-    <!-- This is enabled by /org/sonatype/oss/oss-parent/7 used as parent by 
++    <!-- This is enabled by /org/sonatype/oss/oss-parent/7 used as parent by
+         org/xtext/antlr-generator/3.2.1 -->
+     <repository>
+       <id>sonatype-nexus-snapshots</id>
+@@ -213,6 +213,39 @@
+ 
+   <dependencyManagement>
+     <dependencies>
++      <!-- Keep the shaded language server on one coherent ELK release. Released
++           Pragmatics and kgraph.text.ide otherwise introduce ELK 0.10.0. -->
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.core</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.core.service</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.graph.text</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.graph.text.ide</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.graph.json.text</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.eclipse.elk</groupId>
++        <artifactId>org.eclipse.elk.graph.json.text.ide</artifactId>
++        <version>${elk-version}</version>
++      </dependency>
++
+       <!-- A dependency that Maven artifacts of Eclipse bundles tries to pull the (non-existent) version 1.0.0 from. This version exists and will be used instead. -->
+       <dependency>
+         <groupId>xml-apis</groupId>
+@@ -273,22 +306,22 @@
+             <exclude>**/Abstract*.java</exclude>
+           </excludes>
+         </configuration>
+-      </plugin>      
++      </plugin>
+ 
+       <!-- as we have platform specific fragments we need to tell tycho about target platforms -->
+       <plugin>
+         <groupId>org.eclipse.tycho</groupId>
+         <artifactId>target-platform-configuration</artifactId>
+         <version>${tycho-version}</version>
+-        <configuration>      
++        <configuration>
+           <target>
+             <artifact>
+               <groupId>de.cau.cs.kieler</groupId>
+               <artifactId>de.cau.cs.kieler.semantics.targetplatform</artifactId>
+               <version>0.1.0-SNAPSHOT</version>
+             </artifact>
+-          </target>     
+-      
++          </target>
++
+           <environments>
+             <!-- als 2019-06-17: Dropped 32bit support. Primariliy due to cdt dependency (https://bugs.eclipse.org/bugs/show_bug.cgi?id=543366) -->
+             <!-- <environment>
+@@ -346,7 +379,7 @@
+         </executions>
+       </plugin> -->
+     </plugins>
+-  
++
+     <pluginManagement>
+       <plugins>
+         <!-- maven xtend plugin to tell maven how to compile xtend code -->
+diff --git a/language-server/de.cau.cs.kieler.language.server/src/de/cau/cs/kieler/language/server/LanguageServer.xtend b/language-server/de.cau.cs.kieler.language.server/src/de/cau/cs/kieler/language/server/LanguageServer.xtend
+index cb80653..294ab1b 100644
+--- a/language-server/de.cau.cs.kieler.language.server/src/de/cau/cs/kieler/language/server/LanguageServer.xtend
++++ b/language-server/de.cau.cs.kieler.language.server/src/de/cau/cs/kieler/language/server/LanguageServer.xtend
+@@ -37,7 +37,7 @@ class LanguageServer extends AbstractLanguageServer {
+     
+     def static main(String[] args) {
+         val server = new LanguageServer
+-        server.configureAndRun(new LanguageRegistration, new LSCreator)
++        server.configureAndRun(new LanguageRegistration, [new LSCreator])
+     }
+     
+ }
+\ No newline at end of file
+diff --git a/plugins/de.cau.cs.kieler.sccharts.ui/META-INF/services/de.cau.cs.kieler.sccharts.ui.synthesis.hooks.SynthesisHook b/plugins/de.cau.cs.kieler.sccharts.ui/META-INF/services/de.cau.cs.kieler.sccharts.ui.synthesis.hooks.SynthesisHook
+index 0516776..4e33302 100644
+--- a/plugins/de.cau.cs.kieler.sccharts.ui/META-INF/services/de.cau.cs.kieler.sccharts.ui.synthesis.hooks.SynthesisHook
++++ b/plugins/de.cau.cs.kieler.sccharts.ui/META-INF/services/de.cau.cs.kieler.sccharts.ui.synthesis.hooks.SynthesisHook
+@@ -8,6 +8,7 @@ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.HideAnnotationHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.LabelPlacementSideHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.LabelShorteningHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.SynthesisAnnotationHook
++de.cau.cs.kieler.sccharts.ui.synthesis.hooks.TopdownLayoutHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.LayoutHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.ExpandCollapseHook
+ de.cau.cs.kieler.sccharts.ui.synthesis.hooks.ColorAnnotationHook
+diff --git a/plugins/de.cau.cs.kieler.sccharts.ui/src/de/cau/cs/kieler/sccharts/ui/synthesis/hooks/TopdownLayoutHook.xtend b/plugins/de.cau.cs.kieler.sccharts.ui/src/de/cau/cs/kieler/sccharts/ui/synthesis/hooks/TopdownLayoutHook.xtend
+new file mode 100644
+index 0000000..4149421
+--- /dev/null
++++ b/plugins/de.cau.cs.kieler.sccharts.ui/src/de/cau/cs/kieler/sccharts/ui/synthesis/hooks/TopdownLayoutHook.xtend
+@@ -0,0 +1,167 @@
++/*
++ * KIELER - Kiel Integrated Environment for Layout Eclipse RichClient
++ *
++ * http://rtsys.informatik.uni-kiel.de/kieler
++ * 
++ * Copyright 2024 by
++ * + Kiel University
++ *   + Department of Computer Science
++ *     + Real-Time and Embedded Systems Group
++ * 
++ * This code is provided under the terms of the Eclipse Public License (EPL).
++ */
++package de.cau.cs.kieler.sccharts.ui.synthesis.hooks
++
++import de.cau.cs.kieler.klighd.SynthesisOption
++import de.cau.cs.kieler.klighd.kgraph.KEdge
++import de.cau.cs.kieler.klighd.kgraph.KNode
++import de.cau.cs.kieler.klighd.krendering.ViewSynthesisShared
++import de.cau.cs.kieler.sccharts.Region
++import de.cau.cs.kieler.sccharts.Scope
++import de.cau.cs.kieler.sccharts.State
++import de.cau.cs.kieler.sccharts.Transition
++import de.cau.cs.kieler.sccharts.ui.synthesis.GeneralSynthesisOptions
++import java.util.EnumSet
++import org.eclipse.elk.alg.layered.options.LayeredOptions
++import org.eclipse.elk.alg.layered.options.SplineRoutingMode
++import org.eclipse.elk.alg.rectpacking.options.RectPackingOptions
++import org.eclipse.elk.alg.rectpacking.p3whitespaceelimination.WhiteSpaceEliminationStrategy
++import org.eclipse.elk.core.options.ContentAlignment
++import org.eclipse.elk.core.options.CoreOptions
++import org.eclipse.elk.core.options.SizeConstraint
++import org.eclipse.elk.core.options.TopdownNodeTypes
++import org.eclipse.elk.core.options.TopdownSizeApproximator
++
++import static extension de.cau.cs.kieler.klighd.syntheses.DiagramSyntheses.*
++
++/**
++ * Hook that configures SCCharts to be laid out using top-down layout instead of bottom-up layout.
++ * 
++ * @author mka
++ *
++ */
++ @ViewSynthesisShared
++class TopdownLayoutHook extends SynthesisHook {
++    
++    /** Action ID */
++    public static final String ID = "de.cau.cs.kieler.sccharts.ui.synthesis.hooks.TopdownLayoutHook";
++    
++    public static final SynthesisOption USE_TOPDOWN_LAYOUT = 
++        SynthesisOption.createCheckOption(TopdownLayoutHook, "Topdown Layout", false)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++            
++    public static final SynthesisOption TOPDOWN_HIERARCHICAL_NODE_WIDTH = 
++        SynthesisOption.createRangeOption("Topdown Hierarchical Node Width", 50.0f, 5000.0f, 1.0f, 150.0f)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++            
++    public static final SynthesisOption TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO = 
++        SynthesisOption.createRangeOption("Topdown Hierarchical Node Aspect Ratio", 0.2f, 5.0f, 0.01f, 1.41f)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++            
++    public static final SynthesisOption SCALE_CAP = 
++        SynthesisOption.createCheckOption(TopdownLayoutHook, "Enable Scale Cap", true)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++            
++    public static final SynthesisOption WHITESPACE_ELIMINATION_STRATEGY =
++        SynthesisOption.createChoiceOption("Whitespace Elimination", #["Equal Between Structures", "Aspect Ratio"], "Equal Between Structures")
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    public static final SynthesisOption DISABLE_RECTPACKING_EXPANSION =
++        SynthesisOption.createCheckOption("Disable Rectpacking Expansion", false)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    public static final SynthesisOption CONSERVATIVE_SPLINES =
++        SynthesisOption.createCheckOption(TopdownLayoutHook, "Conservative Splines", false)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    public static final SynthesisOption WRAPPING_FUZZINESS =
++        SynthesisOption.createRangeOption("Wrapping Fuzziness (permitted overhang in %)", 0, 100, 1, 20)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    public static final SynthesisOption SIZE_CATEGORIES =
++        SynthesisOption.createRangeOption(TopdownLayoutHook, "Number of size categories for fixed ratio boxes", 1, 8, 1, 3)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    public static final SynthesisOption SIZE_CATEGORIES_HIERARCHICAL_WEIGHT =
++        SynthesisOption.createRangeOption(TopdownLayoutHook, "Size categories weight of hierarchical nodes", 1, 10, 1, 4)
++            .setCategory(GeneralSynthesisOptions::LAYOUT)
++
++    override getDisplayedSynthesisOptions() {
++        return #[
++            USE_TOPDOWN_LAYOUT, SCALE_CAP, TOPDOWN_HIERARCHICAL_NODE_WIDTH, TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO,
++            SIZE_CATEGORIES, SIZE_CATEGORIES_HIERARCHICAL_WEIGHT, WHITESPACE_ELIMINATION_STRATEGY,
++            DISABLE_RECTPACKING_EXPANSION, CONSERVATIVE_SPLINES, WRAPPING_FUZZINESS
++        ]
++    }
++    
++    override processState(State state, KNode node) {
++        
++        node.setProperty(CoreOptions::TOPDOWN_LAYOUT, USE_TOPDOWN_LAYOUT.booleanValue)
++        if (USE_TOPDOWN_LAYOUT.booleanValue) {
++            node.setLayoutOption(CoreOptions::NODE_SIZE_CONSTRAINTS, EnumSet.noneOf(SizeConstraint))
++            node.setLayoutOption(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE, true)
++            node.setLayoutOption(CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes.HIERARCHICAL_NODE)
++            node.setLayoutOption(CoreOptions::TOPDOWN_SIZE_APPROXIMATOR, TopdownSizeApproximator.LAYOUT_NEXT_LEVEL)
++            node.setLayoutOption(RectPackingOptions::ORDER_BY_SIZE, true)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH, TOPDOWN_HIERARCHICAL_NODE_WIDTH.floatValue as double)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO, TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.floatValue as double)
++            node.setLayoutOption(CoreOptions::CONTENT_ALIGNMENT, EnumSet.of(ContentAlignment.V_CENTER, ContentAlignment.H_CENTER))
++            if (WHITESPACE_ELIMINATION_STRATEGY.objectValue.equals("Aspect Ratio")) {
++                node.setLayoutOption(RectPackingOptions::WHITE_SPACE_ELIMINATION_STRATEGY, WhiteSpaceEliminationStrategy.TO_ASPECT_RATIO)
++            }
++            if (DISABLE_RECTPACKING_EXPANSION.booleanValue) {
++                node.setLayoutOption(RectPackingOptions::WHITE_SPACE_ELIMINATION_STRATEGY, null)
++            }
++            
++            if (SCALE_CAP.booleanValue) {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, 1.0)
++            } else {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, Double.MAX_VALUE)
++            }
++        }
++    }
++    
++    override processRegion(Region region, KNode node) {
++        node.setProperty(CoreOptions::TOPDOWN_LAYOUT, USE_TOPDOWN_LAYOUT.booleanValue)
++        
++        if (USE_TOPDOWN_LAYOUT.booleanValue) {
++            node.setLayoutOption(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE, true)
++            node.setLayoutOption(CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes.HIERARCHICAL_NODE)
++            node.setLayoutOption(CoreOptions::TOPDOWN_SIZE_APPROXIMATOR, TopdownSizeApproximator.FIXED_INTEGER_RATIO_BOXES)
++            node.setLayoutOption(CoreOptions::TOPDOWN_SIZE_CATEGORIES, SIZE_CATEGORIES.intValue)
++            node.setLayoutOption(CoreOptions::TOPDOWN_SIZE_CATEGORIES_HIERARCHICAL_NODE_WEIGHT, SIZE_CATEGORIES_HIERARCHICAL_WEIGHT.intValue)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH, TOPDOWN_HIERARCHICAL_NODE_WIDTH.floatValue as double)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO, TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.floatValue as double)
++            node.setLayoutOption(CoreOptions::CONTENT_ALIGNMENT, EnumSet.of(ContentAlignment.V_CENTER, ContentAlignment.H_CENTER))
++            if (CONSERVATIVE_SPLINES.booleanValue) {
++                node.setLayoutOption(LayeredOptions::EDGE_ROUTING_SPLINES_MODE, SplineRoutingMode.CONSERVATIVE_SOFT)
++            }
++            if (SCALE_CAP.booleanValue) {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, 1.0)
++            } else {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, Double.MAX_VALUE)
++            }
++        }
++    }
++
++    override processTransition(Transition transition, KEdge edge) {
++        edge.labels.forEach[
++            it.setProperty(CoreOptions::SOFTWRAPPING_FUZZINESS, WRAPPING_FUZZINESS.intValue / 100.0)
++        ]
++    }
++    
++    override start(Scope scope, KNode node) {
++        node.setProperty(CoreOptions::TOPDOWN_LAYOUT, USE_TOPDOWN_LAYOUT.booleanValue)
++        if (USE_TOPDOWN_LAYOUT.booleanValue) {
++            node.setLayoutOption(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE, true)
++            node.setLayoutOption(CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes.ROOT_NODE)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH, TOPDOWN_HIERARCHICAL_NODE_WIDTH.floatValue as double)
++            node.setLayoutOption(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO, TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.floatValue as double)
++            if (SCALE_CAP.booleanValue) {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, 1.0)
++            } else {
++                node.setLayoutOption(CoreOptions::TOPDOWN_SCALE_CAP, Double.MAX_VALUE)
++            }
++        }
++    }
++}

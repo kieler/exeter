@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Session {
+  id                String      @id @db.Uuid
+  createdAt         DateTime    @db.Timestamptz(3)
+  context           Json
+  batches           Batch[]
+  stimulus          Stimulus?   @relation(fields: [stimulusId], references: [id], onDelete: Restrict)
+  stimulusId        String?     @db.Uuid
+  lastReceivedAt    DateTime    @db.Timestamptz(3)
+  userAgent         String?
+  participant       Participant? @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  participantId     String?     @db.Uuid
+  externalSessionId String?
+
+  @@map("session")
+}
+
+model Batch {
+  id        String   @id @db.Uuid
+  createdAt DateTime @db.Timestamptz(3)
+  events    Event[]
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String   @db.Uuid
+
+  @@map("batch")
+}
+
+model Event {
+  id         String   @id @db.Uuid
+  batch      Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId    String   @db.Uuid
+  receivedAt DateTime @db.Timestamptz(3)
+  sequence   Int
+  occurredAt DateTime @db.Timestamptz(3)
+  type       String
+  data       Json
+
+  @@map("event")
+}
+
+model Model {
+  id          String     @id @db.Uuid
+  name        String
+  description String
+  createdAt   DateTime   @db.Timestamptz(3)
+  updatedAt   DateTime?  @db.Timestamptz(3)
+  stimuli     Stimulus[]
+
+  @@map("model")
+}
+
+model Survey {
+  id           String        @id @db.Uuid
+  name         String
+  description  String
+  createdAt    DateTime      @db.Timestamptz(3)
+  updatedAt    DateTime?     @db.Timestamptz(3)
+  stimuli      Stimulus[]
+  participants Participant[]
+
+  @@map("survey")
+}
+
+model Stimulus {
+  id               String    @id @db.Uuid
+  name             String
+  description      String
+  survey           Survey    @relation(fields: [surveyId], references: [id])
+  surveyId         String    @db.Uuid
+  model            Model     @relation(fields: [modelId], references: [id])
+  modelId          String    @db.Uuid
+  sessions         Session[]
+  klighdCapture    Json
+  renderOptions    Json
+  synthesisOptions Json
+  createdAt        DateTime  @db.Timestamptz(3)
+  updatedAt        DateTime? @db.Timestamptz(3)
+
+  @@map("stimulus")
+}
+
+model Participant {
+  id                    String    @id @db.Uuid
+  externalParticipantId String?
+  createdAt             DateTime  @db.Timestamptz(3)
+  survey                Survey    @relation(fields: [surveyId], references: [id])
+  surveyId              String    @db.Uuid
+  sessions              Session[]
+
+  @@unique([surveyId, externalParticipantId])
+  @@map("participant")
+}
+
+model AuthUser {
+  id            String        @id
+  name          String
+  email         String        @unique
+  emailVerified Boolean       @map("email_verified")
+  image         String?
+  createdAt     DateTime      @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @map("updated_at") @db.Timestamptz(3)
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+
+  @@map("auth_user")
+}
+
+model AuthSession {
+  id        String   @id
+  user      AuthUser @relation(fields: [userId], references: [id])
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(3)
+
+  @@map("auth_session")
+}
+
+model AuthAccount {
+  id                    String    @id
+  user                  AuthUser  @relation(fields: [userId], references: [id])
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  issuer                String
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  idToken               String?   @map("id_token")
+  password              String?
+  createdAt             DateTime  @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([issuer, accountId])
+  @@map("auth_account")
+}
+
+model AuthVerification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @map("updated_at") @db.Timestamptz(3)
+
+  @@map("auth_verification")
+}

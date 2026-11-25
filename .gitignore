@@ -1,0 +1,10 @@
+# Local files
+.DS_Store
+*.pem
+.env*
+!/.env.example
+.pnpm-store/
+
+# Local Docker data
+/data/
+/apps/exeter-server/diagram-sources/

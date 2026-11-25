@@ -1,0 +1,51 @@
+name: exeter
+
+services:
+  database:
+    image: postgres:18.4-alpine3.23@sha256:96d56f7f57c6aacd1fcb908bc83b345ec5f83231ee486dd66a1baadce274db88
+    restart: unless-stopped
+    env_file: .env.local
+    volumes:
+      - ./data/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  exeter-server:
+    image: ghcr.io/kieler/exeter/exeter-server:main
+    restart: unless-stopped
+    env_file: .env.local
+    depends_on:
+      prisma-migrations:
+        condition: service_completed_successfully
+      language-server-ws-proxy:
+        condition: service_started
+    volumes:
+      - ./data/diagram-sources:/app/diagram-sources
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  prisma-migrations:
+    image: ghcr.io/kieler/exeter/prisma-migrations:main
+    env_file: .env.local
+    restart: "no"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  language-server:
+    image: ghcr.io/kieler/exeter/language-server:main
+    restart: unless-stopped
+    volumes:
+      - ./data/diagram-sources:/diagram-sources:ro
+
+  language-server-ws-proxy:
+    image: ghcr.io/kieler/exeter/ws-proxy:main
+    restart: unless-stopped
+    env_file: .env.local
+    depends_on:
+      - language-server
+    ports:
+      - "127.0.0.1:8000:8000"

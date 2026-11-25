@@ -1,0 +1,67 @@
+diff --git a/plugins/de.cau.cs.kieler.klighd.lsp/src/de/cau/cs/kieler/klighd/lsp/launch/AbstractLanguageServer.xtend b/plugins/de.cau.cs.kieler.klighd.lsp/src/de/cau/cs/kieler/klighd/lsp/launch/AbstractLanguageServer.xtend
+index 8f7f4b2..403d722 100644
+--- a/plugins/de.cau.cs.kieler.klighd.lsp/src/de/cau/cs/kieler/klighd/lsp/launch/AbstractLanguageServer.xtend
++++ b/plugins/de.cau.cs.kieler.klighd.lsp/src/de/cau/cs/kieler/klighd/lsp/launch/AbstractLanguageServer.xtend
+@@ -27,6 +27,7 @@ import java.util.concurrent.LinkedBlockingQueue
+ import java.util.function.Consumer
+ import org.eclipse.elk.core.util.Maybe
+ import org.eclipse.xtext.ide.server.LanguageServerImpl
++import java.util.function.Supplier
+ 
+ /**
+  * Extensible entry point for the language server applications for the projects based around KLighD diagrams.<br>
+@@ -50,7 +51,7 @@ abstract class AbstractLanguageServer implements Runnable {
+     
+     extension ILanguageRegistration languageRegistration
+     
+-    extension ILsCreator creator
++    extension Supplier<ILsCreator> creatorFactory
+     
+     /**
+      * Queue to execute SWT or AWT calls on the main Thread.
+@@ -62,11 +63,11 @@ abstract class AbstractLanguageServer implements Runnable {
+      * the instance of the calling class.
+      * 
+      * @param languageRegistration The registration used to register all languages for this server.
+-     * @param lsCreator The helping creator class to create this language server.
++     * @param lsCreatorFactory A supplier for the helping creator class to create this language server.
+      */
+-    def configureAndRun(ILanguageRegistration languageRegistration, ILsCreator lsCreator) {
++    def configureAndRun(ILanguageRegistration languageRegistration, ()=>ILsCreator lsCreatorFactory) {
+         this.languageRegistration = languageRegistration
+-        this.creator = lsCreator
++        this.creatorFactory = lsCreatorFactory
+         // Start LS an new Thread to use this as UI Thread.
+         new Thread([
+             run
+@@ -146,17 +147,21 @@ abstract class AbstractLanguageServer implements Runnable {
+             println("Language Server Socket ready!")
+             
+             while (true) {
+-                val socketChannel = serverSocket.accept.get            
+-                val in = Channels.newInputStream(socketChannel)
+-                val out = Channels.newOutputStream(socketChannel)
+-                val injector = Guice.createInjector(createLSModules(true))
+-                val ls = injector.getInstance(LanguageServerImpl)
+-                println("Starting language server for client " + socketChannel.remoteAddress)
+-                buildAndStartLS(injector, ls, in, out, threadPool, [new ReflectiveMessageValidatorExcludingSKGraph(it)], true)
+-                println("Finished language server for client " + socketChannel.remoteAddress)
++                val socketChannel = serverSocket.accept.get
++                
++                new Thread([  
++                    val in = Channels.newInputStream(socketChannel)
++                    val out = Channels.newOutputStream(socketChannel)
++                    val lsCreator = creatorFactory.get
++                    val injector = Guice.createInjector(lsCreator.createLSModules(true))
++                    val ls = injector.getInstance(LanguageServerImpl)
++                    println("Starting language server for client " + socketChannel.remoteAddress)
++                    lsCreator.buildAndStartLS(injector, ls, in, out, threadPool, [new ReflectiveMessageValidatorExcludingSKGraph(it)], true)
++                    println("Finished language server for client " + socketChannel.remoteAddress)
++                ]).start()
+             }
+         } else {
+-            LanguageServerLauncher.launch(languageRegistration, creator)
++            LanguageServerLauncher.launch(languageRegistration, creatorFactory.get)
+         }
+     }
+     

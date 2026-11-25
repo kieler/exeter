@@ -2,29 +2,24 @@
   "name": "exeter",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24-trixie",
   "features": {
-    // We include this feature so that we can run `docker compose up` from inside the devcontainer.
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1.10.0": {
       "moby": false
     }
   },
+  "containerEnv": {
+    "EXETER_HOST_WORKSPACE": "${localWorkspaceFolder}"
+  },
   // This block makes sure that there is a docker network called `exeter-dev` and that the devcontainer is on it.
   // That way, our local docker compose infra (postgres etc) can talk to the container.
   "initializeCommand": "docker network inspect exeter-dev >/dev/null 2>&1 || docker network create exeter-dev",
-  "runArgs": [
-    "--network",
-    "exeter-dev",
-    "--label",
-    "com.exeter.devcontainer=main"
-  ],
+  "runArgs": ["--network", "exeter-dev", "--label", "com.exeter.devcontainer=main"],
+  "forwardPorts": [3000],
+  // Use the pnpm version pinned in the application's package.json.
   "postCreateCommand": "sudo corepack enable",
   "remoteUser": "node",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "Prisma.prisma"
-      ]
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "Prisma.prisma"]
     }
   }
 }

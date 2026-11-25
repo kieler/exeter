@@ -1,0 +1,52 @@
+name: exeter-dev
+
+services:
+  database:
+    image: postgres:18.4-alpine3.23@sha256:96d56f7f57c6aacd1fcb908bc83b345ec5f83231ee486dd66a1baadce274db88
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  language-server:
+    image: ghcr.io/kieler/exeter/language-server:main
+    platform: linux/amd64
+    volumes:
+      - type: bind
+        source: ${EXETER_HOST_WORKSPACE:-../..}/apps/exeter-server/diagram-sources
+        target: /diagram-sources
+        read_only: true
+        bind:
+          create_host_path: false
+
+  language-server-ws-proxy:
+    image: ghcr.io/kieler/exeter/ws-proxy:main
+    platform: linux/amd64
+    environment:
+      LSP_HOST: language-server
+      LSP_PORT: "5007"
+      PROXY_PORT: "8000"
+    depends_on:
+      - language-server
+    ports:
+      - "127.0.0.1:8001:8000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/health').then(response => process.exit(response.ok ? 0 : 1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:
+
+networks:
+  default:
+    name: exeter-dev
+    external: true
